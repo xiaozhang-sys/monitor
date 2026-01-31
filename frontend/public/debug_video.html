@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>视频流调试</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .video-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .video-container {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 4px;
+            position: relative;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            border-radius: 4px;
+        }
+        .device-info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 16px;
+        }
+        .error {
+            color: red;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>视频流调试页面</h1>
+        <button onclick="loadDevices()">加载设备</button>
+        <button onclick="testAllConnections()">测试所有连接</button>
+        <button onclick="clearLog()">清除日志</button>
+        
+        <div id="devices-container" class="video-grid"></div>
+        
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8004';
+        const WEBRTC_BASE = 'http://localhost:8090';
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        async function loadDevices() {
+            try {
+                log('正在加载设备...');
+                const response = await fetch(`${API_BASE}/devices`);
+                const devices = await response.json();
+                
+                log(`成功加载 ${devices.length} 个设备`);
+                renderDevices(devices);
+                
+            } catch (error) {
+                log(`加载设备失败: ${error.message}`);
+            }
+        }
+        
+        function renderDevices(devices) {
+            const container = document.getElementById('devices-container');
+            container.innerHTML = '';
+            
+            devices.forEach(device => {
+                const videoItem = document.createElement('div');
+                videoItem.className = 'video-item';
+                
+                const rtspUrl = `rtsp://${device.user}:${device.pwd}@${device.ip}:${device.port}/Streaming/Channels/101`;
+                
+                videoItem.innerHTML = `
+                    <div class="video-container">
+                        <video id="video-${device.id}" autoplay muted></video>
+                        <div class="loading">加载中...</div>
+                    </div>
+                    <div class="device-info">
+                        <strong>${device.name}</strong><br>
+                        ${device.ip}:${device.port}<br>
+                        <span style="font-size: 12px; color: #999;">${rtspUrl}</span>
+                    </div>
+                    <button onclick="startWebRTC('${device.id}', '${rtspUrl}')">启动WebRTC</button>
+                    <div id="error-${device.id}" class="error"></div>
+                `;
+                
+                container.appendChild(videoItem);
+            });
+        }
+        
+        async function startWebRTC(deviceId, rtspUrl) {
+            try {
+                log(`正在为设备 ${deviceId} 启动WebRTC...`);
+                
+                // 创建WebRTC offer
+                const offerData = {
+                    sdp: "v=0\no=- 1234567890 2 IN IP4 127.0.0.1\ns=Test\nm=video 9 UDP/TLS/RTP/SAVPF 96\nc=IN IP4 0.0.0.0\na=ice-ufrag:test\na=ice-pwd:test123\na=fingerprint:sha-256 00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF\na=setup:actpass\na=mid:0\na=sendrecv\na=rtcp-mux\na=rtpmap:96 H264/90000\na=fmtp:96 profile-level-id=42e01f;packetization-mode=1\n",
+                    rtsp_url: rtspUrl
+                };
+                
+                const response = await fetch(`${WEBRTC_BASE}/api/offer`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(offerData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`WebRTC服务器错误: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                log(`WebRTC响应成功，SDP长度: ${data.sdp.length}`);
+                
+                // 创建PeerConnection并播放
+                const video = document.getElementById(`video-${deviceId}`);
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                pc.ontrack = (event) => {
+                    log(`设备 ${deviceId} 接收到视频流`);
+                    video.srcObject = event.streams[0];
+                    video.play();
+                };
+                
+                await pc.setRemoteDescription({
+                    type: 'answer',
+                    sdp: data.sdp
+                });
+                
+                // 隐藏加载提示
+                const loading = video.parentElement.querySelector('.loading');
+                if (loading) loading.style.display = 'none';
+                
+            } catch (error) {
+                log(`设备 ${deviceId} WebRTC启动失败: ${error.message}`);
+                document.getElementById(`error-${deviceId}`).textContent = error.message;
+            }
+        }
+        
+        async function testAllConnections() {
+            try {
+                log('测试所有服务连接...');
+                
+                // 测试设备API
+                const devicesResponse = await fetch(`${API_BASE}/devices`);
+                log(`设备API: ${devicesResponse.status}`);
+                
+                // 测试WebRTC服务
+                const webrtcResponse = await fetch(`${WEBRTC_BASE}/health`);
+                log(`WebRTC服务: ${webrtcResponse.status}`);
+                
+                // 测试RTSP连接
+                const devices = await devicesResponse.json();
+                for (const device of devices) {
+                    const img = new Image();
+                    img.onload = () => log(`设备 ${device.name} RTSP可达`);
+                    img.onerror = () => log(`设备 ${device.name} RTSP不可达`);
+                    img.src = `http://${device.ip}:${device.port}/favicon.ico`;
+                }
+                
+            } catch (error) {
+                log(`连接测试失败: ${error.message}`);
+            }
+        }
+        
+        // 页面加载时自动加载设备
+        window.addEventListener('load', () => {
+            loadDevices();
+            setTimeout(testAllConnections, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8003,
+    "workers": 1,
+    "reload": true,
+    "log_level": "debug"
+  },
+  "database": {
+    "type": "sqlite",
+    "sqlite": {
+      "path": "./data/test_devices.db",
+      "check_same_thread": false,
+      "timeout": 5.0
+    },
+    "mysql": {
+      "host": "localhost",
+      "port": 3306,
+      "user": "test_user",
+      "password": "test_password",
+      "database": "test_monitor_db",
+      "charset": "utf8mb4"
+    },
+    "postgresql": {
+      "host": "localhost",
+      "port": 5432,
+      "user": "test_user",
+      "password": "test_password",
+      "database": "test_monitor_db"
+    },
+    "path": "./data/test_devices.db",
+    "backup_path": "./data/test_backups/",
+    "auto_backup": false,
+    "backup_retention_days": 1,
+    "connection_pool_size": 5,
+    "connection_timeout": 10
+  },
+  "auth": {
+    "jwt_secret": "test-secret-key",
+    "jwt_algorithm": "HS256",
+    "access_token_expire_minutes": 5,
+    "refresh_token_expire_days": 1,
+    "max_login_attempts": 10,
+    "lockout_duration": 60
+  },
+  "cors": {
+    "allow_origins": ["http://localhost:5174", "http://127.0.0.1:5174"],
+    "allow_credentials": true,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"]
+  },
+  "monitoring": {
+    "device_check_interval": 30,
+    "stream_check_interval": 15,
+    "enable_logging": true,
+    "log_retention_days": 1
+  },
+  "testing": {
+    "mock_data_enabled": true,
+    "test_device_count": 10,
+    "auto_cleanup": true,
+    "enable_test_routes": true
+  }
+}

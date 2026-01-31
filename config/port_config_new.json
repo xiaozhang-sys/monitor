@@ -1,0 +1,45 @@
+{
+  "format_version": "1.0",
+  "metadata": {
+    "description": "系统端口配置",
+    "last_updated": "2025-09-10",
+    "schema": "port_config_v1"
+  },
+  "ports": {
+    "frontend": {
+      "dev": 5173,
+      "prod": 3000,
+      "description": "前端服务"
+    },
+    "backend": {
+      "dev": 8004,
+      "prod": 8004,
+      "description": "后端API"
+    },
+    "webrtc": {
+      "dev": 8081,
+      "prod": 8081,
+      "description": "WebRTC流媒体服务"
+    },
+    "hevc_compat": {
+      "dev": 8090,
+      "prod": 8090,
+      "description": "HEVC兼容服务(H.265视频转换)"
+    },
+    "database": {
+      "sqlite": "./data/devices.db",
+      "description": "SQLite数据库文件"
+    }
+  },
+  "port_ranges": {
+    "reserved": [8004, 8081, 8090, 5173],
+    "available": ["8000-8999"],
+    "dynamic": ["9000-9999"]
+  },
+  "urls": {
+    "frontend": "http://localhost:{frontend_port}",
+    "backend": "http://localhost:{backend_port}",
+    "webrtc": "http://localhost:{webrtc_port}",
+    "api_docs": "http://localhost:{backend_port}/docs"
+  }
+}

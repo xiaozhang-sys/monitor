@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC测试 - 正确凭证</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { margin-top: 20px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        #log { margin-top: 20px; padding: 10px; background-color: #f0f0f0; height: 200px; overflow-y: auto; }
+        #video { margin-top: 20px; max-width: 100%; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>WebRTC测试 - 使用正确RTSP凭证</h1>
+    
+    <div class="container">
+        <div class="input-group">
+            <label for="server_url">WebRTC服务器URL:</label>
+            <input type="text" id="server_url" value="http://localhost:8090">
+        </div>
+        
+        <div class="input-group">
+            <label for="device_ip">设备IP:</label>
+            <input type="text" id="device_ip" value="192.168.42.85">
+        </div>
+        
+        <button id="connect_btn">连接WebRTC</button>
+        <button id="disconnect_btn" disabled>断开连接</button>
+        
+        <div id="log"></div>
+        
+        <video id="video" autoplay playsinline controls></video>
+    </div>
+
+    <script>
+        const serverUrl = document.getElementById('server_url');
+        const deviceIp = document.getElementById('device_ip');
+        const connectBtn = document.getElementById('connect_btn');
+        const disconnectBtn = document.getElementById('disconnect_btn');
+        const log = document.getElementById('log');
+        const video = document.getElementById('video');
+        
+        let pc = null;
+        let ws = null;
+        
+        // 日志函数
+        function appendLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        // 清除日志
+        function clearLog() {
+            log.innerHTML = '';
+        }
+        
+        // 连接WebRTC
+        async function connectWebRTC() {
+            clearLog();
+            appendLog('开始连接WebRTC...');
+            
+            try {
+                // 创建PeerConnection
+                pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                // 监听ICE连接状态
+                pc.oniceconnectionstatechange = () => {
+                    appendLog(`ICE连接状态: ${pc.iceConnectionState}`);
+                    
+                    if (pc.iceConnectionState === 'connected') {
+                        appendLog('✅ WebRTC连接成功');
+                    } else if (pc.iceConnectionState === 'failed') {
+                        appendLog('❌ WebRTC连接失败');
+                        disconnectWebRTC();
+                    }
+                };
+                
+                // 监听轨道
+                pc.ontrack = (event) => {
+                    appendLog('收到视频轨道');
+                    video.srcObject = event.streams[0];
+                };
+                
+                // 创建offer
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                
+                // 发送offer到服务器
+                const response = await fetch(`${serverUrl.value}/api/offer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sdp: pc.localDescription.sdp,
+                        type: pc.localDescription.type,
+                        device_ip: deviceIp.value
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`服务器响应错误: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(`服务器错误: ${data.error}`);
+                }
+                
+                // 设置远程描述
+                await pc.setRemoteDescription(new RTCSessionDescription({
+                    sdp: data.sdp,
+                    type: data.type
+                }));
+                
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                
+            } catch (error) {
+                appendLog(`错误: ${error.message}`);
+                disconnectWebRTC();
+            }
+        }
+        
+        // 断开连接
+        function disconnectWebRTC() {
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+            
+            video.srcObject = null;
+            connectBtn.disabled = false;
+            disconnectBtn.disabled = true;
+            appendLog('已断开连接');
+        }
+        
+        // 检查服务器健康状态
+        async function checkServerHealth() {
+            try {
+                const response = await fetch(`${serverUrl.value}/health`);
+                if (response.ok) {
+                    appendLog('✅ 服务器健康状态正常');
+                    return true;
+                } else {
+                    appendLog(`❌ 服务器健康检查失败: ${response.status}`);
+                    return false;
+                }
+            } catch (error) {
+                appendLog(`❌ 无法连接到服务器: ${error.message}`);
+                return false;
+            }
+        }
+        
+        // 绑定按钮事件
+        connectBtn.addEventListener('click', connectWebRTC);
+        disconnectBtn.addEventListener('click', disconnectWebRTC);
+        
+        // 页面加载时检查服务器健康状态
+        window.addEventListener('load', checkServerHealth);
+    </script>
+</body>
+</html>

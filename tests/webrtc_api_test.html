@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC API测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 10px 0;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+            background: #000;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .log {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebRTC API测试</h1>
+        
+        <div class="section">
+            <h3>服务状态</h3>
+            <button onclick="checkHealth()">检查服务状态</button>
+            <div id="health-status" class="status info">等待检查...</div>
+        </div>
+
+        <div class="section">
+            <h3>设备选择</h3>
+            <select id="device-select">
+                <option value="rtsp://admin:Chang168@192.168.42.85:55401/Streaming/Channels/101">录像机1 - 通道1</option>
+                <option value="rtsp://admin:Chang168@192.168.42.85:55402/Streaming/Channels/101">录像机2 - 通道1</option>
+            </select>
+        </div>
+
+        <div class="section">
+            <h3>WebRTC连接</h3>
+            <button onclick="startWebRTC()" id="start-btn">开始视频流</button>
+            <button onclick="stopWebRTC()" id="stop-btn" disabled>停止视频流</button>
+            <div id="connection-status" class="status info">等待开始...</div>
+        </div>
+
+        <div class="section">
+            <h3>视频显示</h3>
+            <div class="video-container">
+                <video id="remote-video" autoplay playsinline></video>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>调试日志</h3>
+            <div id="log" class="log"></div>
+            <button onclick="clearLog()">清除日志</button>
+        </div>
+    </div>
+
+    <script>
+        const WEBRTC_SERVER = 'http://localhost:8090';
+        let pc = null;
+        let clientId = null;
+
+        function addLog(message, type = 'info') {
+            const log = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = `[${timestamp}] ${message}`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${WEBRTC_SERVER}/health`);
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('health-status');
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `服务正常 - 活跃流: ${data.active_streams}, 连接: ${data.active_connections}`;
+                
+                addLog('服务状态检查成功', 'success');
+            } catch (error) {
+                const statusDiv = document.getElementById('health-status');
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `服务异常: ${error.message}`;
+                
+                addLog(`服务检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function startWebRTC() {
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const statusDiv = document.getElementById('connection-status');
+            const rtspUrl = document.getElementById('device-select').value;
+            
+            try {
+                startBtn.disabled = true;
+                statusDiv.className = 'status info';
+                statusDiv.textContent = '创建WebRTC连接...';
+                
+                addLog(`开始连接: ${rtspUrl}`, 'info');
+
+                // 创建唯一的客户端ID
+                clientId = 'client_' + Date.now();
+
+                // 创建PeerConnection
+                pc = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' }
+                    ]
+                });
+
+                // 添加事件监听
+                pc.oniceconnectionstatechange = () => {
+                    addLog(`ICE连接状态: ${pc.iceConnectionState}`, 'info');
+                    if (pc.iceConnectionState === 'connected') {
+                        statusDiv.className = 'status success';
+                        statusDiv.textContent = 'WebRTC连接成功';
+                    } else if (pc.iceConnectionState === 'failed') {
+                        statusDiv.className = 'status error';
+                        statusDiv.textContent = 'WebRTC连接失败';
+                        stopWebRTC();
+                    }
+                };
+
+                pc.ontrack = (event) => {
+                    addLog('收到视频流', 'success');
+                    const video = document.getElementById('remote-video');
+                    video.srcObject = event.streams[0];
+                };
+
+                // 创建offer
+                const offer = await pc.createOffer({
+                    offerToReceiveVideo: true,
+                    offerToReceiveAudio: false
+                });
+
+                await pc.setLocalDescription(offer);
+
+                // 发送到服务器
+                const response = await fetch(`${WEBRTC_SERVER}/api/stream/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        clientId: clientId,
+                        rtspUrl: rtspUrl,
+                        sdp: offer.sdp
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    addLog('服务器响应成功，设置远程描述', 'success');
+                    await pc.setRemoteDescription(new RTCSessionDescription({
+                        type: 'answer',
+                        sdp: data.sdp
+                    }));
+                    
+                    stopBtn.disabled = false;
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '等待视频流...';
+                } else {
+                    throw new Error(data.error || '服务器错误');
+                }
+
+            } catch (error) {
+                addLog(`连接失败: ${error.message}`, 'error');
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `连接失败: ${error.message}`;
+                startBtn.disabled = false;
+                
+                if (pc) {
+                    pc.close();
+                    pc = null;
+                }
+            }
+        }
+
+        async function stopWebRTC() {
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const statusDiv = document.getElementById('connection-status');
+            
+            try {
+                if (clientId) {
+                    await fetch(`${WEBRTC_SERVER}/api/stream/stop`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            clientId: clientId
+                        })
+                    });
+                }
+
+                if (pc) {
+                    pc.close();
+                    pc = null;
+                }
+
+                const video = document.getElementById('remote-video');
+                video.srcObject = null;
+
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                statusDiv.className = 'status info';
+                statusDiv.textContent = '连接已停止';
+
+                addLog('WebRTC连接已停止', 'info');
+
+            } catch (error) {
+                addLog(`停止连接时出错: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时检查服务状态
+        window.addEventListener('load', () => {
+            checkHealth();
+        });
+
+        // 页面卸载时清理
+        window.addEventListener('beforeunload', () => {
+            if (pc) {
+                stopWebRTC();
+            }
+        });
+    </script>
+</body>
+</html>

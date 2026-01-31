@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>设备数据测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .device { border: 1px solid #ccc; margin: 10px 0; padding: 10px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>设备数据检查</h1>
+    <div id="result">加载中...</div>
+
+    <script>
+        async function checkDevices() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                // 测试设备API
+                const response = await fetch('/api/devices');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const devices = await response.json();
+                
+                let html = `<p class="success">成功获取 ${devices.length} 个设备</p>`;
+                
+                devices.forEach(device => {
+                    const hasRequiredFields = device.ip && device.port && device.user && device.pwd;
+                    const status = hasRequiredFields ? 'success' : 'error';
+                    
+                    html += `
+                        <div class="device">
+                            <h3>${device.name || '未知设备'} (${status === 'success' ? '✅' : '❌'})</h3>
+                            <p><strong>ID:</strong> ${device.id}</p>
+                            <p><strong>IP:</strong> ${device.ip || '<span class="error">缺失</span>'}</p>
+                            <p><strong>端口:</strong> ${device.port || '<span class="error">缺失</span>'}</p>
+                            <p><strong>用户名:</strong> ${device.user || '<span class="error">缺失</span>'}</p>
+                            <p><strong>密码:</strong> ${device.pwd || '<span class="error">缺失</span>'}</p>
+                            <p><strong>通道数:</strong> ${device.chs || 1}</p>
+                            <p><strong>协议:</strong> ${device.protocol || 'rtsp'}</p>
+                            <p><strong>状态:</strong> ${device.status || 'unknown'}</p>
+                            <p><strong>RTSP URL:</strong> rtsp://${device.user || 'admin'}:${device.pwd || 'password'}@${device.ip || '127.0.0.1'}:${device.port || 554}/Streaming/Channels/${(device.chs || 1)}01</p>
+                        </div>
+                    `;
+                });
+                
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">错误: ${error.message}</p>`;
+                console.error('设备数据检查失败:', error);
+            }
+        }
+        
+        // 页面加载完成后执行
+        window.addEventListener('load', checkDevices);
+    </script>
+</body>
+</html>

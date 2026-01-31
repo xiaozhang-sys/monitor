@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS跨域测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .log {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CORS跨域测试工具</h1>
+        
+        <div class="test-section">
+            <h3>1. 基础连接测试</h3>
+            <button onclick="testConnection()">测试基本连接</button>
+            <div id="connection-result" class="result info">等待测试...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. CORS预检请求测试</h3>
+            <button onclick="testPreflight()">测试预检请求</button>
+            <div id="preflight-result" class="result info">等待测试...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. API端点测试</h3>
+            <button onclick="testHealth()">测试健康检查</button>
+            <button onclick="testDevices()">测试设备列表</button>
+            <div id="api-result" class="result info">等待测试...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. WebRTC流测试</h3>
+            <select id="device-select">
+                <option value="rtsp://admin:Chang168@192.168.42.85:55401/Streaming/Channels/101">录像机1</option>
+                <option value="rtsp://admin:Chang168@192.168.42.85:55402/Streaming/Channels/101">录像机2</option>
+            </select>
+            <button onclick="testWebRTC()">测试WebRTC连接</button>
+            <div id="webrtc-result" class="result info">等待测试...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. 调试日志</h3>
+            <div id="log" class="log"></div>
+            <button onclick="clearLog()">清除日志</button>
+        </div>
+    </div>
+
+    <script>
+        const WEBRTC_SERVER = 'http://localhost:8090';
+
+        function addLog(message, type = 'info') {
+            const log = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = `[${timestamp}] ${message}`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        async function testConnection() {
+            const result = document.getElementById('connection-result');
+            try {
+                addLog('测试基本连接...', 'info');
+                
+                const response = await fetch(WEBRTC_SERVER, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                const data = await response.json();
+                result.className = 'result success';
+                result.textContent = `连接成功: ${data.message}`;
+                addLog('基本连接测试通过', 'success');
+                
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `连接失败: ${error.message}`;
+                addLog(`连接失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPreflight() {
+            const result = document.getElementById('preflight-result');
+            try {
+                addLog('测试CORS预检请求...', 'info');
+                
+                const response = await fetch(`${WEBRTC_SERVER}/api/stream/start`, {
+                    method: 'OPTIONS',
+                    mode: 'cors',
+                    headers: {
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+                };
+                
+                result.className = 'result success';
+                result.textContent = `预检成功: ${JSON.stringify(corsHeaders)}`;
+                addLog('CORS预检测试通过', 'success');
+                
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `预检失败: ${error.message}`;
+                addLog(`预检失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testHealth() {
+            const result = document.getElementById('api-result');
+            try {
+                addLog('测试健康检查API...', 'info');
+                
+                const response = await fetch(`${WEBRTC_SERVER}/health`, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                const data = await response.json();
+                result.className = 'result success';
+                result.textContent = `健康检查: ${JSON.stringify(data)}`;
+                addLog('健康检查API测试通过', 'success');
+                
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `健康检查失败: ${error.message}`;
+                addLog(`健康检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDevices() {
+            const result = document.getElementById('api-result');
+            try {
+                addLog('测试设备列表API...', 'info');
+                
+                const response = await fetch(`${WEBRTC_SERVER}/api/devices`, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                const data = await response.json();
+                result.className = 'result success';
+                result.textContent = `设备列表: ${data.devices.length} 个设备`;
+                addLog('设备列表API测试通过', 'success');
+                
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `设备列表失败: ${error.message}`;
+                addLog(`设备列表失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testWebRTC() {
+            const result = document.getElementById('webrtc-result');
+            const rtspUrl = document.getElementById('device-select').value;
+            
+            try {
+                addLog('测试WebRTC流连接...', 'info');
+                addLog(`RTSP URL: ${rtspUrl}`, 'info');
+                
+                // 创建PeerConnection
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                // 创建offer
+                const offer = await pc.createOffer({
+                    offerToReceiveVideo: true,
+                    offerToReceiveAudio: false
+                });
+                
+                await pc.setLocalDescription(offer);
+                
+                // 发送到服务器
+                const response = await fetch(`${WEBRTC_SERVER}/api/stream/start`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        clientId: `test_${Date.now()}`,
+                        rtspUrl: rtspUrl,
+                        sdp: pc.localDescription.sdp
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.className = 'result success';
+                    result.textContent = `WebRTC连接成功: ${data.resolution}`;
+                    addLog('WebRTC流测试通过', 'success');
+                    
+                    // 清理
+                    await pc.close();
+                } else {
+                    throw new Error(data.error || '服务器返回错误');
+                }
+                
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `WebRTC测试失败: ${error.message}`;
+                addLog(`WebRTC测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时自动测试
+        window.addEventListener('load', () => {
+            addLog('CORS测试页面已加载', 'info');
+            testConnection();
+        });
+    </script>
+</body>
+</html>

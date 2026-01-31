@@ -1,0 +1,47 @@
+[
+  {
+    "id": 5,
+    "region": "苏州",
+    "store": "源丰店",
+    "ip": "192.168.42.85",
+    "port": 55401,
+    "user": "admin",
+    "pwd": "${DEVICE_PASSWORD}",
+    "chs": 1,
+    "name": "录像机一",
+    "protocol": "rtsp",
+    "status": "online",
+    "rtsp_url": "rtsp://${DEVICE_USERNAME}:${DEVICE_PASSWORD}@192.168.42.85:55401/Streaming/Channels/101",
+    "stream_url": "rtsp://${DEVICE_USERNAME}:${DEVICE_PASSWORD}@192.168.42.85:55401/Streaming/Channels/101"
+  },
+  {
+    "id": 6,
+    "region": "南京",
+    "store": "六合店",
+    "ip": "192.168.42.86",
+    "port": 55401,
+    "user": "admin",
+    "pwd": "${DEVICE_PASSWORD}",
+    "chs": 1,
+    "name": "录像机二",
+    "protocol": "rtsp",
+    "status": "online",
+    "rtsp_url": "rtsp://${DEVICE_USERNAME}:${DEVICE_PASSWORD}@192.168.42.86:55401/Streaming/Channels/101",
+    "stream_url": "rtsp://${DEVICE_USERNAME}:${DEVICE_PASSWORD}@192.168.42.86:55401/Streaming/Channels/101"
+  },
+  {
+    "id": 16,
+    "region": "南京",
+    "store": "六合店",
+    "ip": "192.168.42.86",
+    "port": 55501,
+    "user": "admin",
+    "pwd": "${DEVICE_PASSWORD}",
+    "chs": 1,
+    "name": "录像机三",
+    "protocol": "rtsp",
+    "status": "online",
+    "rtsp_url": "rtsp://${DEVICE_USERNAME}:${DEVICE_PASSWORD}@192.168.42.86:55501/Streaming/Channels/101",
+    "stream_url": "rtsp://${DEVICE_USERNAME}:${DEVICE_PASSWORD}@192.168.42.86:55501/Streaming/Channels/101"
+  }
+]

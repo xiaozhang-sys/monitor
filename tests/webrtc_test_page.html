@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC 测试页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input[type="text"] { width: 100%; padding: 8px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .video-container { margin: 20px 0; }
+        #localVideo, #remoteVideo { width: 100%; max-width: 400px; border: 1px solid #ccc; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; max-height: 200px; overflow-y: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebRTC 测试页面</h1>
+        
+        <div class="form-group">
+            <label>RTSP URL:</label>
+            <input type="text" id="rtspUrl" value="test_video.mp4" placeholder="rtsp://... 或 本地文件">
+        </div>
+        
+        <div>
+            <button onclick="startWebRTC()">开始WebRTC连接</button>
+            <button onclick="stopWebRTC()">停止连接</button>
+            <button onclick="openWebRTCInternals()">打开WebRTC Internals</button>
+        </div>
+        
+        <div class="video-container">
+            <h3>远程视频</h3>
+            <video id="remoteVideo" autoplay playsinline></video>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        let pc = null;
+        let remoteVideo = null;
+        let logDiv = null;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            remoteVideo = document.getElementById('remoteVideo');
+            logDiv = document.getElementById('log');
+            log('页面加载完成，WebRTC端口: 8090');
+        });
+
+        function log(message, isError = false) {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = isError ? 'error' : 'success';
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        async function startWebRTC() {
+            const rtspUrl = document.getElementById('rtspUrl').value.trim();
+            if (!rtspUrl) {
+                log('请输入RTSP URL', true);
+                return;
+            }
+
+            try {
+                log('正在创建PeerConnection...');
+                pc = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' }
+                    ]
+                });
+
+                // 监听ICE连接状态
+                pc.oniceconnectionstatechange = () => {
+                    log(`ICE连接状态: ${pc.iceConnectionState}`);
+                };
+
+                // 监听远程流
+                pc.ontrack = (event) => {
+                    log('收到远程视频流');
+                    remoteVideo.srcObject = event.streams[0];
+                };
+
+                // 创建offer
+                const offer = await pc.createOffer({
+                    offerToReceiveVideo: true,
+                    offerToReceiveAudio: false
+                });
+
+                await pc.setLocalDescription(offer);
+                log('本地SDP创建完成');
+
+                // 发送到服务器
+                const response = await fetch('http://localhost:8090/api/offer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sdp: offer.sdp,
+                        type: offer.type,
+                        rtsp_url: rtspUrl
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const answer = await response.json();
+                log('收到服务器应答');
+
+                await pc.setRemoteDescription(new RTCSessionDescription(answer));
+                log('WebRTC连接建立完成');
+
+                // 开始监控统计
+                startStatsMonitoring();
+
+            } catch (error) {
+                log(`WebRTC连接失败: ${error.message}`, true);
+                stopWebRTC();
+            }
+        }
+
+        function stopWebRTC() {
+            if (pc) {
+                pc.close();
+                pc = null;
+                log('WebRTC连接已关闭');
+            }
+            
+            if (remoteVideo.srcObject) {
+                remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+                remoteVideo.srcObject = null;
+            }
+        }
+
+        function openWebRTCInternals() {
+            window.open('chrome://webrtc-internals/', '_blank');
+            log('已打开WebRTC Internals页面');
+        }
+
+        async function startStatsMonitoring() {
+            if (!pc) return;
+
+            const interval = setInterval(async () => {
+                if (!pc || pc.iceConnectionState === 'closed') {
+                    clearInterval(interval);
+                    return;
+                }
+
+                try {
+                    const stats = await pc.getStats();
+                    let packetsReceived = 0;
+                    let framesDecoded = 0;
+                    let bytesReceived = 0;
+
+                    stats.forEach(report => {
+                        if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+                            packetsReceived = report.packetsReceived || 0;
+                            framesDecoded = report.framesDecoded || 0;
+                            bytesReceived = report.bytesReceived || 0;
+                        }
+                    });
+
+                    if (packetsReceived > 0) {
+                        log(`📊 统计: 包=${packetsReceived}, 帧=${framesDecoded}, 字节=${bytesReceived}`);
+                        
+                        if (packetsReceived > 0 && framesDecoded === 0) {
+                            log('⚠️ 收到包但无解码帧 - 可能是编码格式问题', true);
+                        }
+                    }
+
+                } catch (error) {
+                    log(`获取统计失败: ${error.message}`, true);
+                    clearInterval(interval);
+                }
+            }, 2000);
+        }
+
+        // 页面关闭时清理
+        window.addEventListener('beforeunload', stopWebRTC);
+    </script>
+</body>
+</html>

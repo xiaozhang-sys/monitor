@@ -1,0 +1,33 @@
+{
+  "format_version": "1.0",
+  "metadata": {
+    "description": "主WebRTC服务配置(端口8081)",
+    "last_updated": "2025-09-10"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8081,
+    "debug": false
+  },
+  "media": {
+    "video": {
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "bitrate": 1000000
+    },
+    "audio": {
+      "sample_rate": 48000,
+      "channels": 2,
+      "bitrate": 128000
+    }
+  },
+  "security": {
+    "cors_origins": ["*"],
+    "max_connections": 100
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "webRTC_server.log"
+  }
+}

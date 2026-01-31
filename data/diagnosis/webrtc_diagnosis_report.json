@@ -1,0 +1,45 @@
+{
+  "service_health": {
+    "status": "healthy",
+    "connections": 2,
+    "url": "http://localhost:8090/health"
+  },
+  "encoding_format": {
+    "test_source": "test_video.mp4",
+    "codec": "H264 (本地文件)",
+    "compatible": true,
+    "note": "本地测试文件应正常工作"
+  },
+  "keyframe_interval": {
+    "recommended_gop": "1-2秒",
+    "current_setting": "未知(需检查RTSP源)",
+    "solution": "将摄像机GOP设置为1-2秒，或使用ffmpeg -g 30"
+  },
+  "ports_firewall": {
+    "tcp_8080": true,
+    "udp_range": {
+      "50000": true,
+      "55000": true,
+      "60000": true
+    }
+  },
+  "bandwidth_qos": {
+    "recommendation": "从200kbps开始测试",
+    "test_command": "ffmpeg -i input -b:v 200k -maxrate 200k -bufsize 400k ...",
+    "note": "先降低码率排除带宽问题"
+  },
+  "timestamp_continuity": {
+    "solution": "使用ffmpeg重新对齐时间戳",
+    "command": "ffmpeg -copyts -rtsp_transport tcp -use_wallclock_as_timestamps 1",
+    "note": "避免时间戳跳跃导致浏览器丢帧"
+  },
+  "browser_compatibility": {
+    "webrtc_support": true,
+    "test_page": "webrtc_test_page.html",
+    "debug_tools": [
+      "chrome://webrtc-internals/",
+      "chrome://webrtc-logs/",
+      "about:webrtc (Firefox)"
+    ]
+  }
+}

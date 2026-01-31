@@ -1,0 +1,137 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2023-12-15",
+  "description": "监控系统统一端口配置文件 - 所有服务必须使用此文件中定义的端口，禁止在代码中硬编码端口号",
+  
+  "important_note": "此为核心配置文件，修改前请确认所有服务已停止，并通知相关开发人员。端口修改后需同步更新相关文档和环境变量。",
+  
+  "development": {
+    "services": {
+      "frontend": {
+        "port": 5173,
+        "description": "前端开发服务器 (Vite)",
+        "fixed": true,
+        "protocol": "http",
+        "host": "localhost"
+      },
+      "backend_api": {
+        "port": 8003,
+        "description": "后端API服务 (Flask)",
+        "fixed": true,
+        "protocol": "http",
+        "host": "localhost"
+      },
+      "webrtc_server": {
+        "port": 8090,
+        "description": "WebRTC流媒体服务器",
+        "fixed": true,
+        "protocol": "http",
+        "host": "localhost"
+      },
+      "test_server": {
+        "port": 8000,
+        "description": "测试HTTP服务器",
+        "fixed": true,
+        "protocol": "http",
+        "host": "localhost"
+      },
+      "http_server": {
+        "port": 8081,
+        "description": "备用HTTP服务",
+        "fixed": false,
+        "protocol": "http",
+        "host": "localhost"
+      }
+    },
+    
+    "environment_variables": {
+      "frontend": {
+        "VITE_FRONTEND_PORT": "5173",
+        "VITE_API_PORT": "8003",
+        "VITE_WEBRTC_PORT": "8090",
+        "BACKEND_PORT": "8003"
+      },
+      "backend": {
+        "API_PORT": "8003",
+        "WEBRTC_PORT": "8090"
+      }
+    },
+    
+    "urls": {
+      "frontend": "http://localhost:5173",
+      "backend_api": "http://localhost:8003/api",
+      "webrtc": "http://localhost:8090",
+      "test_page": "http://localhost:8000/webrtc_test.html",
+      "http_server": "http://localhost:8081"
+    }
+  },
+  
+  "production": {
+    "services": {
+      "frontend": {
+        "port": 80,
+        "description": "前端生产服务器",
+        "fixed": true,
+        "protocol": "http",
+        "host": "0.0.0.0"
+      },
+      "backend_api": {
+        "port": 8080,
+        "description": "后端API服务 (生产环境)",
+        "fixed": true,
+        "protocol": "http",
+        "host": "0.0.0.0"
+      },
+      "webrtc_server": {
+        "port": 8090,
+        "description": "WebRTC流媒体服务器 (生产环境)",
+        "fixed": true,
+        "protocol": "http",
+        "host": "0.0.0.0"
+      }
+    },
+    
+    "environment_variables": {
+      "frontend": {
+        "VITE_FRONTEND_PORT": "80",
+        "VITE_API_PORT": "8080",
+        "VITE_WEBRTC_PORT": "8090",
+        "BACKEND_PORT": "8080"
+      },
+      "backend": {
+        "API_PORT": "8080",
+        "WEBRTC_PORT": "8090"
+      }
+    },
+    
+    "urls": {
+      "frontend": "http://your-domain.com",
+      "backend_api": "http://your-domain.com:8080/api",
+      "webrtc": "http://your-domain.com:8090"
+    }
+  },
+  
+  "port_allocation": {
+    "range": "5173-8090",
+    "reserved_ports": [
+      5173, 8000, 8003, 8080, 8081, 8090
+    ],
+    "available_ports": "请在8001-8002, 8082-8089范围内选择未使用的端口"
+  },
+  
+  "usage_guidelines": {
+    "1": "所有服务必须使用此配置文件中定义的端口，禁止在代码中硬编码端口号",
+    "2": "开发环境使用development部分的配置，生产环境使用production部分的配置",
+    "3": "前端项目必须通过环境变量使用端口，具体配置见environment_variables.frontend部分",
+    "4": "后端项目必须通过环境变量使用端口，具体配置见environment_variables.backend部分",
+    "5": "添加新服务时，需在此文件中注册端口，并确保不与现有端口冲突",
+    "6": "修改端口配置后，必须同步更新前端.env文件和后端配置",
+    "7": "fixed为true的端口为核心服务端口，禁止随意修改"
+  },
+  
+  "troubleshooting": {
+    "port_conflict": "如果端口被占用，请检查是否有其他进程在运行，使用netstat -ano | findstr [端口号]命令查找占用进程",
+    "service_unreachable": "确认服务已启动，且防火墙未阻止该端口访问",
+    "cross_origin_error": "检查前后端端口配置是否正确，确保API调用使用正确的端口"
+  }
+}

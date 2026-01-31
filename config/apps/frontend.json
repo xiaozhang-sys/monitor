@@ -1,0 +1,41 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 5174,
+    "https": false
+  },
+  "proxy": {
+    "api": {
+      "target": "http://localhost:8004",
+      "path_rewrite": "^/api"
+    },
+    "webrtc": {
+      "target": "http://localhost:8090",
+      "path_rewrite": "^/webrtc"
+    }
+  },
+  "build": {
+    "output_dir": "dist",
+    "assets_dir": "assets",
+    "sourcemap": false,
+    "minify": "terser",
+    "css_minify": true
+  },
+  "dev": {
+    "cors": {
+      "allowed_origins": ["*"],
+      "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      "allowed_headers": ["Content-Type", "Authorization"]
+    }
+  },
+  "features": {
+    "device_monitoring": true,
+    "webrtc_streaming": true,
+    "auto_refresh": true,
+    "debug_mode": true
+  },
+  "defaults": {
+    "username": "admin",
+    "password": "admin123"
+  }
+}

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>认证测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.5/dist/js.cookie.min.js"></script>
+</head>
+<body>
+    <h1>认证测试页面</h1>
+    <div id="test-results"></div>
+    
+    <script>
+        async function testAuth() {
+            const results = document.getElementById('test-results');
+            
+            try {
+                // 测试1: 检查Cookie
+                const token = Cookies.get('token');
+                results.innerHTML += `<p>Token: ${token || '未找到'}</p>`;
+                
+                // 测试2: 直接测试API
+                const response = await fetch('/api/devices', {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+                
+                results.innerHTML += `<p>API响应状态: ${response.status}</p>`;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML += `<p>设备数量: ${data.length}</p>`;
+                } else {
+                    results.innerHTML += `<p>错误: ${response.statusText}</p>`;
+                }
+                
+            } catch (error) {
+                results.innerHTML += `<p>错误: ${error.message}</p>`;
+            }
+        }
+        
+        testAuth();
+    </script>
+</body>
+</html>

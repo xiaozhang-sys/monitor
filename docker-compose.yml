@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: monitor-backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./logs:/app/logs
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/devices.db}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: monitor-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: monitor-nginx
+    ports:
+      - "${NGINX_PORT:-80}:80"
+      - "443:443"
+    volumes:
+      - ./frontend/nginx.conf:/etc/nginx/nginx.conf
+      - ./frontend/dist:/usr/share/nginx/html
+    restart: unless-stopped
+
+  srs:
+    image: ossrs/srs:4
+    container_name: monitor-srs
+    ports:
+      - "1935:1935"
+      - "${WEBRTC_PORT:-8090}:8090"
+      - "1985:1985"
+      - "8000:8000/udp"
+    volumes:
+      - ./backend/config/srs:/usr/local/srs/conf
+    restart: unless-stopped
+
+networks:
+  default:
+    name: monitor-network

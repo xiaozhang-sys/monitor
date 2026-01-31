@@ -1,0 +1,94 @@
+{
+  "server": {
+    "backend": {
+      "host": "0.0.0.0",
+      "port": 8002,
+      "debug": false,
+      "cors_origins": [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173"
+      ]
+    },
+    "frontend": {
+      "host": "0.0.0.0",
+      "port": 3000,
+      "dev_port": 5173
+    },
+    "webrtc": {
+      "host": "0.0.0.0",
+      "port": 8080,
+      "max_connections": 100
+    }
+  },
+  "database": {
+    "sqlite": {
+      "path": "./data/devices.db",
+      "timeout": 30
+    },
+    "backup": {
+      "enabled": true,
+      "interval_hours": 24,
+      "retention_days": 7
+    }
+  },
+  "media": {
+    "rtsp": {
+      "timeout": 10,
+      "buffer_size": 1024000,
+      "max_delay": 500000,
+      "transport": "tcp"
+    },
+    "video": {
+      "width": 1920,
+      "height": 1080,
+      "fps": 25,
+      "bitrate": 1000000
+    },
+    "audio": {
+      "sample_rate": 48000,
+      "channels": 2,
+      "bitrate": 128000
+    }
+  },
+  "security": {
+    "jwt": {
+      "secret_key": "your-secret-key-change-this-in-production",
+      "algorithm": "HS256",
+      "access_token_expire_minutes": 30
+    },
+    "rate_limit": {
+      "requests_per_minute": 60,
+      "burst_limit": 10
+    }
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "logs/app.log",
+    "max_size_mb": 100,
+    "backup_count": 5
+  },
+  "services": {
+    "heartbeat": {
+      "enabled": true,
+      "interval_seconds": 30,
+      "timeout_seconds": 5
+    },
+    "monitor": {
+      "enabled": true,
+      "check_interval_seconds": 60,
+      "alert_threshold": 3
+    }
+  },
+  "sync": {
+    "frontend": {
+      "env_file": ".env",
+      "config_template": "config/environment_template.env"
+    },
+    "backend": {
+      "config_loader": "config_loader.py",
+      "watch_config": true
+    }
+  }
+}

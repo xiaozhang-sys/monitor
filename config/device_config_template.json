@@ -1,0 +1,49 @@
+{
+  "format_version": "1.0",
+  "metadata": {
+    "description": "监控设备配置模板",
+    "last_updated": "2025-01-01",
+    "schema": "device_config_v1"
+  },
+  "devices": [
+    {
+      "id": "camera_001",
+      "name": "示例摄像头",
+      "region": "区域名称",
+      "store": "店铺名称",
+      "protocol": "rtsp",
+      "connection": {
+        "ip": "192.168.1.100",
+        "port": 554,
+        "username": "admin",
+        "password": "password",
+        "rtsp_url": "rtsp://admin:password@192.168.1.100:554/Streaming/Channels/101"
+      },
+      "capabilities": {
+        "channels": 1,
+        "resolution": "1920x1080",
+        "fps": 25,
+        "codec": "H.264"
+      },
+      "status": {
+        "enabled": true,
+        "check_interval": 60,
+        "timeout": 10
+      },
+      "tags": ["前门", "主入口"],
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  ],
+  "groups": [
+    {
+      "id": "group_01",
+      "name": "店铺组",
+      "device_ids": ["camera_001"]
+    }
+  ],
+  "defaults": {
+    "rtsp_format": "rtsp://{username}:{password}@{ip}:{port}/Streaming/Channels/{channel}",
+    "timeout": 10,
+    "check_interval": 60
+  }
+}

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP设备iframe测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .device-info {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .iframe-container {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .url-display {
+            padding: 8px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>HTTP设备iframe测试页面</h1>
+    
+    <div class="test-container">
+        <h2>测试设备：录像机三 (HTTP)</h2>
+        
+        <div class="device-info">
+            <p><strong>设备信息：</strong></p>
+            <p>IP地址：192.168.42.86:55501</p>
+            <p>协议：HTTP</p>
+            <p>用户名：admin</p>
+            <p>状态：<span id="status">待测试</span></p>
+        </div>
+        
+        <div class="controls">
+            <button onclick="loadIframe('basic')">基础URL加载</button>
+            <button onclick="loadIframe('login')">登录页加载</button>
+            <button onclick="openInNewTab()">新标签页打开</button>
+            <button onclick="testConnection()">测试连接</button>
+        </div>
+        
+        <div style="margin: 10px 0;">
+            <label>选择路径：</label>
+            <select id="path-select" onchange="updateUrlDisplay()">
+                <option value="">基础地址 (192.168.42.86:55501)</option>
+                <option value="/">根目录 (/)</option>
+                <option value="/login">登录页 (/login)</option>
+                <option value="/web">Web界面 (/web)</option>
+                <option value="/doc">文档页 (/doc)</option>
+            </select>
+        </div>
+        
+        <div class="url-display" id="url-display">
+            设备URL将显示在这里
+        </div>
+        
+        <div class="iframe-container">
+            <iframe id="device-iframe" src="" style="display: none;"></iframe>
+            <div id="placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">
+                点击"加载设备页面"开始测试
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const device = {
+            ip: '192.168.42.86',
+            port: 55501,
+            user: 'admin',
+            pwd: 'Chang168',
+            protocol: 'http',
+            name: '录像机三'
+        };
+
+        function buildDeviceUrl(type = 'basic') {
+            const { ip, port, user, pwd, protocol } = device;
+            const httpPort = port || (protocol === 'https' ? 443 : 80);
+            let baseUrl = `${protocol}://${ip}:${httpPort}`;
+            
+            const pathSelect = document.getElementById('path-select');
+            const selectedPath = pathSelect.value;
+            
+            if (type === 'login') {
+                return `${baseUrl}/login`;
+            }
+            
+            return selectedPath ? `${baseUrl}${selectedPath}` : baseUrl;
+        }
+
+        function updateUrlDisplay() {
+            document.getElementById('url-display').textContent = buildDeviceUrl();
+        }
+
+        function loadIframe(type = 'basic') {
+            const url = buildDeviceUrl(type);
+            document.getElementById('url-display').textContent = url;
+            document.getElementById('device-iframe').src = url;
+            document.getElementById('device-iframe').style.display = 'block';
+            document.getElementById('placeholder').style.display = 'none';
+            
+            // 监听iframe加载状态
+            document.getElementById('device-iframe').onload = function() {
+                document.getElementById('status').textContent = '已加载';
+                document.getElementById('status').style.color = 'green';
+            };
+            
+            document.getElementById('device-iframe').onerror = function() {
+                document.getElementById('status').textContent = '加载失败';
+                document.getElementById('status').style.color = 'red';
+            };
+        }
+
+        function openInNewTab() {
+            const url = buildDeviceUrl();
+            window.open(url, '_blank');
+        }
+
+        function testConnection() {
+            const url = `http://${device.ip}:${device.port}`;
+            fetch(url, { mode: 'no-cors' })
+                .then(() => {
+                    document.getElementById('status').textContent = '连接成功';
+                    document.getElementById('status').style.color = 'green';
+                })
+                .catch(() => {
+                    document.getElementById('status').textContent = '连接失败';
+                    document.getElementById('status').style.color = 'red';
+                });
+        }
+
+        // 页面加载时显示URL
+        window.onload = function() {
+            updateUrlDisplay();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "services": {
+    "frontend": {
+      "port": 5173,
+      "description": "前端Vue应用",
+      "fixed": true,
+      "service_name": "retail-eye-frontend",
+      "url": "http://localhost:5173"
+    },
+    "backend": {
+      "port": 8003,
+      "description": "后端API服务",
+      "fixed": true,
+      "service_name": "retail-eye-backend",
+      "url": "http://localhost:8003"
+    },
+    "webrtc": {
+      "port": 8082,
+      "description": "WebRTC指纹修复服务器",
+      "fixed": true,
+      "service_name": "webrtc-fingerprint-fix",
+      "url": "http://localhost:8082"
+    }
+  },
+  "configuration": {
+    "fixed_ports": true,
+    "require_manual_change": true,
+    "last_updated": "2025-09-14",
+    "version": "1.0.0"
+  },
+  "notes": "所有端口已固定，除非手动修改此配置文件，否则不会更改"
+}

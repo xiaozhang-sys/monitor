@@ -1,0 +1,9 @@
+{
+  "_comment": "注意：当前系统已更改为本地直接运行模式，不再使用Docker容器化部署。",
+  "_comment2": "如需查看当前运行环境的端口配置，请参考 port_config_new.json 文件。",
+  "_comment3": "本地运行命令：",
+  "_comment4": "1. 启动后端服务: python backend/main.py",
+  "_comment5": "2. 启动前端服务: cd frontend && npm run dev",
+  "_comment6": "3. 启动HEVC兼容服务: python scripts/webrtc/hevc_compat_server.py --port 8090",
+  "services": {}
+}

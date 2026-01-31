@@ -1,0 +1,3 @@
+@echo off
+cd /d "d:\code\Monitor\scripts\device_management"
+python "devices.csv"

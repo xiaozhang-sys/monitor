@@ -1,0 +1,48 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8004,
+    "workers": 1,
+    "reload": true,
+    "log_level": "info"
+  },
+  "database": {
+    "type": "sqlite",
+    "sqlite": {
+      "path": "./data/devices.db",
+      "check_same_thread": false,
+      "timeout": 10.0
+    },
+    "mysql": {
+      "host": "localhost",
+      "port": 3306,
+      "user": "monitor_user",
+      "password": "password123",
+      "database": "retail_monitor"
+    },
+    "postgresql": {
+      "host": "localhost",
+      "port": 5432,
+      "user": "pg_monitor_user",
+      "password": "pg_password123",
+      "database": "retail_monitor_pg"
+    }
+  },
+  "auth": {
+    "jwt_secret": "your-secret-key-here",
+    "jwt_algorithm": "HS256",
+    "access_token_expire_minutes": 30,
+    "refresh_token_expire_days": 7
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file": "./logs/backend.log"
+  },
+  "features": {
+    "device_monitoring": true,
+    "webrtc_streaming": true,
+    "auto_discovery": true,
+    "health_checks": true
+  }
+}

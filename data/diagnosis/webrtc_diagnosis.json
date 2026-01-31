@@ -1,0 +1,37 @@
+{
+  "timestamp": "2025-09-14 21:44:46",
+  "rtsp_url": "rtsp://${DEVICE_USERNAME}:${DEVICE_PASSWORD}@192.168.42.85:55401/Streaming/Channels/101",
+  "services": {
+    "webrtc_server": true,
+    "frontend": true
+  },
+  "rtsp_info": {
+    "success": false,
+    "width": 0,
+    "height": 0,
+    "fps": 0,
+    "codec": "",
+    "duration": 0,
+    "error": "[WinError 2] 系统找不到指定的文件。"
+  },
+  "webrtc_test": {
+    "success": false,
+    "sdp_exchange": false,
+    "ice_candidates": false,
+    "error": null,
+    "response_time": 2.061333179473877
+  },
+  "browser_compat": {
+    "webrtc_supported": true,
+    "h264_supported": true,
+    "hevc_supported": false,
+    "stun_servers": [
+      "stun:stun.l.google.com:19302",
+      "stun:stun1.l.google.com:19302"
+    ]
+  },
+  "recommendations": [
+    "❌ RTSP流无法访问，请检查网络连接和设备状态",
+    "❌ WebRTC连接失败，请检查服务器配置"
+  ]
+}

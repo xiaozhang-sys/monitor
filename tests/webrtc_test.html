@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebRTC连接测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .video-container { width: 640px; height: 480px; border: 1px solid #ccc; }
+        video { width: 100%; height: 100%; }
+        button { padding: 10px 20px; margin: 5px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>WebRTC连接测试</h1>
+    
+    <div class="test-section">
+        <h2>1. 服务器状态检查</h2>
+        <button onclick="checkServerStatus()">检查服务器状态</button>
+        <div id="status-result" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. SDP交换测试</h2>
+        <button onclick="testSDPExchange()">测试SDP交换</button>
+        <div id="sdp-result" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. 实时视频测试</h2>
+        <button onclick="startVideoTest()">开始视频测试</button>
+        <button onclick="stopVideoTest()">停止视频</button>
+        <div class="video-container">
+            <video id="test-video" autoplay muted playsinline></video>
+        </div>
+        <div id="video-log" class="log"></div>
+    </div>
+
+    <script>
+        let pc = null;
+        let videoElement = null;
+
+        function log(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+            container.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function checkServerStatus() {
+            const result = document.getElementById('status-result');
+            result.innerHTML = '';
+            
+            try {
+                const response = await fetch('http://localhost:8090/health');
+                const data = await response.json();
+                
+                log('status-result', `✅ 健康检查成功: ${response.status}`, 'success');
+                log('status-result', `📊 状态: ${JSON.stringify(data, null, 2)}`, 'success');
+            } catch (error) {
+                log('status-result', `❌ 服务器连接失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSDPExchange() {
+            const result = document.getElementById('sdp-result');
+            result.innerHTML = '';
+            
+            try {
+                // 创建PeerConnection
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                // 创建offer
+                const offer = await pc.createOffer({
+                    offerToReceiveAudio: false,
+                    offerToReceiveVideo: true
+                });
+                await pc.setLocalDescription(offer);
+
+                log('sdp-result', `📤 发送offer: ${offer.sdp.length} 字符`);
+
+                // 发送到服务器
+                const response = await fetch('http://localhost:8090/api/offer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sdp: offer.sdp,
+                        rtsp_url: 'test://demo/video',
+                        type: 'main'
+                    })
+                });
+
+                const data = await response.json();
+                log('sdp-result', `📥 收到响应: ${response.status}`, response.ok ? 'success' : 'error');
+                
+                if (data.success && data.sdp) {
+                    log('sdp-result', `✅ SDP交换成功: ${data.sdp.length} 字符`, 'success');
+                    
+                    // 验证指纹格式
+                    const fingerprintMatch = data.sdp.match(/a=fingerprint:sha-256 ([0-9A-F:]{95})/);
+                    if (fingerprintMatch) {
+                        log('sdp-result', `🔑 指纹: ${fingerprintMatch[1]}`, 'success');
+                    }
+                } else {
+                    log('sdp-result', `❌ SDP交换失败: ${data.error || '未知错误'}`, 'error');
+                }
+
+                pc.close();
+            } catch (error) {
+                log('sdp-result', `❌ SDP交换异常: ${error.message}`, 'error');
+            }
+        }
+
+        async function startVideoTest() {
+            const logContainer = document.getElementById('video-log');
+            logContainer.innerHTML = '';
+            videoElement = document.getElementById('test-video');
+            
+            try {
+                log('video-log', '🔄 开始WebRTC视频测试...');
+
+                // 创建PeerConnection
+                pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                // 设置事件监听
+                pc.ontrack = (event) => {
+                    log('video-log', '📹 收到视频轨道', 'success');
+                    videoElement.srcObject = event.streams[0];
+                };
+
+                pc.onconnectionstatechange = () => {
+                    log('video-log', `🔗 连接状态: ${pc.connectionState}`);
+                    if (pc.connectionState === 'connected') {
+                        log('video-log', '✅ WebRTC连接成功', 'success');
+                    }
+                };
+
+                pc.oniceconnectionstatechange = () => {
+                    log('video-log', `🧊 ICE状态: ${pc.iceConnectionState}`);
+                    if (pc.iceConnectionState === 'failed') {
+                        log('video-log', '❌ ICE连接失败', 'error');
+                    }
+                };
+
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        log('video-log', `🎯 ICE候选: ${event.candidate.type}`);
+                    }
+                };
+
+                // 创建并发送offer
+                const offer = await pc.createOffer({
+                    offerToReceiveAudio: false,
+                    offerToReceiveVideo: true
+                });
+                await pc.setLocalDescription(offer);
+
+                log('video-log', `📤 发送offer: ${offer.sdp.length} 字符`);
+
+                // 发送到服务器
+                const response = await fetch('http://localhost:8090/api/offer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sdp: offer.sdp,
+                        rtsp_url: 'test://demo/video',
+                        type: 'main'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.sdp) {
+                    log('video-log', `📥 收到answer: ${data.sdp.length} 字符`);
+                    
+                    // 设置远程描述
+                    await pc.setRemoteDescription({
+                        type: data.type || 'answer',
+                        sdp: data.sdp
+                    });
+                    
+                    log('video-log', '✅ SDP设置完成，等待视频流...', 'success');
+                } else {
+                    log('video-log', `❌ 服务器响应错误: ${data.error || '未知错误'}`, 'error');
+                }
+
+            } catch (error) {
+                log('video-log', `❌ 视频测试失败: ${error.message}`, 'error');
+                if (pc) pc.close();
+            }
+        }
+
+        function stopVideoTest() {
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+            if (videoElement && videoElement.srcObject) {
+                videoElement.srcObject.getTracks().forEach(track => track.stop());
+                videoElement.srcObject = null;
+            }
+            document.getElementById('video-log').innerHTML += '<div>🛑 视频测试已停止</div>';
+        }
+
+        // 页面加载时自动检查服务器状态
+        window.addEventListener('load', () => {
+            checkServerStatus();
+        });
+    </script>
+</body>
+</html>

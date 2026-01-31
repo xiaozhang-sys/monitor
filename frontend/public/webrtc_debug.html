@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC调试工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .video-container {
+            width: 100%;
+            height: 500px;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        label {
+            font-weight: bold;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .logs {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+        }
+        .error {
+            color: #d32f2f;
+        }
+        .success {
+            color: #2e7d32;
+        }
+        .info {
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebRTC调试工具</h1>
+        
+        <div class="control-panel">
+            <div class="input-group">
+                <label for="rtsp-url">RTSP URL:</label>
+                <input id="rtsp-url" type="text" value="rtsp://admin:Chang168@192.168.42.85:55401/Streaming/Channels/101">
+            </div>
+            <div class="input-group">
+                <label for="webrtc-url">WebRTC服务器URL:</label>
+                <input id="webrtc-url" type="text" value="http://localhost:8090">
+            </div>
+            <button id="connect-btn">连接WebRTC</button>
+            <button id="disconnect-btn" disabled>断开连接</button>
+        </div>
+        
+        <div class="video-container">
+            <video id="video" autoplay playsinline></video>
+        </div>
+        
+        <div class="logs" id="logs">
+            <div class="info">准备就绪，请点击"连接WebRTC"按钮开始测试</div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const rtspUrlInput = document.getElementById('rtsp-url');
+        const webrtcUrlInput = document.getElementById('webrtc-url');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const logs = document.getElementById('logs');
+        
+        let pc = null;
+        
+        function log(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(logEntry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+        
+        connectBtn.addEventListener('click', async () => {
+            const rtspUrl = rtspUrlInput.value.trim();
+            const webrtcBaseUrl = webrtcUrlInput.value.trim();
+            
+            if (!rtspUrl || !webrtcBaseUrl) {
+                log('请输入RTSP URL和WebRTC服务器URL', 'error');
+                return;
+            }
+            
+            try {
+                log(`正在连接到WebRTC服务器: ${webrtcBaseUrl}`);
+                log(`使用RTSP URL: ${rtspUrl}`);
+                
+                // 创建WebRTC连接
+                await connectWebRTC(rtspUrl, webrtcBaseUrl);
+                
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+            } catch (error) {
+                log(`连接失败: ${error.message}`, 'error');
+            }
+        });
+        
+        disconnectBtn.addEventListener('click', () => {
+            disconnectWebRTC();
+            connectBtn.disabled = false;
+            disconnectBtn.disabled = true;
+        });
+        
+        async function connectWebRTC(rtspUrl, webrtcBaseUrl) {
+            try {
+                // 清理已有连接
+                if (pc) {
+                    log('清理已有连接');
+                    pc.close();
+                    pc = null;
+                }
+                
+                // 创建新的WebRTC连接
+                const config = {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' }
+                    ]
+                };
+                
+                log('创建PeerConnection');
+                pc = new RTCPeerConnection(config);
+                
+                // 添加视频轨道处理
+                pc.ontrack = (event) => {
+                    log('接收到视频轨道');
+                    video.srcObject = event.streams[0];
+                };
+                
+                // 监听连接状态
+                pc.onconnectionstatechange = () => {
+                    log(`连接状态: ${pc.connectionState}`);
+                    if (pc.connectionState === 'failed') {
+                        log('WebRTC连接失败', 'error');
+                        disconnectWebRTC();
+                    }
+                };
+                
+                // 监听ICE连接状态
+                pc.oniceconnectionstatechange = () => {
+                    log(`ICE连接状态: ${pc.iceConnectionState}`);
+                };
+                
+                // 监听ICE候选
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        log(`发现ICE候选: ${JSON.stringify(event.candidate).substring(0, 100)}...`);
+                    }
+                };
+                
+                // 创建offer
+                log('创建WebRTC offer');
+                const offer = await pc.createOffer({
+                    offerToReceiveAudio: true,
+                    offerToReceiveVideo: true
+                });
+                await pc.setLocalDescription(offer);
+                log('Offer创建成功');
+                
+                // 发送offer到服务器
+                log(`发送offer到服务器: ${webrtcBaseUrl}/api/offer`);
+                const response = await fetch(`${webrtcBaseUrl}/api/offer`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sdp: offer.sdp,
+                        type: offer.type,
+                        rtsp_url: rtspUrl
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                log('接收到服务器应答');
+                
+                // 设置远程描述
+                log('设置远程描述');
+                await pc.setRemoteDescription(new RTCSessionDescription({
+                    type: data.type,
+                    sdp: data.sdp
+                }));
+                
+                log('WebRTC连接建立成功，等待视频流...', 'success');
+            } catch (error) {
+                log(`WebRTC连接过程中出错: ${error.message}`, 'error');
+                console.error('详细错误:', error);
+                throw error;
+            }
+        }
+        
+        function disconnectWebRTC() {
+            if (pc) {
+                log('断开WebRTC连接');
+                pc.close();
+                pc = null;
+            }
+            
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+        }
+    </script>
+</body>
+</html>
